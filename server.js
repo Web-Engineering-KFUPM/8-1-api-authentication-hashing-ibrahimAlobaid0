@@ -293,14 +293,12 @@ app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body || {};
 
-    // Validate input
     if (!email || !password) {
       return res
         .status(400)
         .json({ error: "Email and password are required" });
     }
 
-    // Find user
     const user = users.find((u) => u.email === email);
     if (!user) {
       return res.status(400).json({ error: "User not found" });
@@ -328,6 +326,55 @@ app.post("/login", async (req, res) => {
 // =========================
 app.get("/weather", async (req, res) => {
   // Implement logic here based on the TODO 3.
+   try {
+    // Read auth header
+    const auth = req.headers.authorization;
+    if (!auth) {
+      return res.status(401).json({ error: "Missing token" });
+    }
+
+    const token = auth.split(" ")[1];
+
+    // Verify token
+    try {
+      jwt.verify(token, JWT_SECRET);
+    } catch {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    // Read city
+    const city = req.query.city;
+    if (!city) {
+      return res.status(400).json({ error: "City required" });
+    }
+
+    // Fetch weather
+    const url = `https://goweather.herokuapp.com/weather/${encodeURIComponent(
+      city
+    )}`;
+
+    const weatherResponse = await fetch(url);
+    if (!weatherResponse.ok) {
+      return res
+        .status(500)
+        .json({ error: "Error from weather API" });
+    }
+
+    const data = await weatherResponse.json();
+
+    return res.json({
+      city,
+      temp: data.temperature,
+      description: data.description,
+      wind: data.wind,
+      raw: data,
+    });
+  } catch (err) {
+    console.error("Weather error:", err);
+    return res.status(500).json({
+      error: "Server error during weather fetch",
+    });
+  }
 });
 
 // Start server
